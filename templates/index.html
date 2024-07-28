@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparación de Métodos de Lectura de Datos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Comparación de Métodos de Lectura de Datos</h1>
+        <button id="runTestBtn" class="btn">Ejecutar Lectura</button>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+        
+        <div id="results" class="results">
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>Método</th>
+                        <th>Tiempo (segundos)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Línea por Línea</td>
+                        <td id="resultado_linea" class="highlight"></td>
+                    </tr>
+                    <tr>
+                        <td>Completa en Memoria</td>
+                        <td id="resultado_memoria" class="highlight"></td>
+                    </tr>
+                    <tr>
+                        <td>Con Buffers</td>
+                        <td id="resultado_buffers" class="highlight"></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th colspan="2">Información Adicional</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>El método más rápido es:</td>
+                        <td id="resultado_ganador" class="highlight"></td>
+                    </tr>
+                    <tr>
+                        <td>Archivo leído:</td>
+                        <td id="resultado_archivo"></td>
+                    </tr>
+                    <tr>
+                        <td>Tipo de datos:</td>
+                        <td id="resultado_tipo"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('runTestBtn').addEventListener('click', function() {
+            const button = document.getElementById('runTestBtn');
+            console.log("Botón presionado. Iniciando prueba...");
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('results').style.display = 'none';
+            button.disabled = true;
+
+            fetch('/run_test')
+                .then(response => {
+                    console.log("Respuesta recibida. Procesando...");
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Datos procesados:", data);
+                    document.getElementById('resultado_linea').innerHTML = data.tiempos["Línea por Línea"].toFixed(4);
+                    document.getElementById('resultado_memoria').innerHTML = data.tiempos["Completa en Memoria"].toFixed(4);
+                    document.getElementById('resultado_buffers').innerHTML = data.tiempos["Con Buffers"].toFixed(4);
+                    document.getElementById('resultado_ganador').innerHTML = data.ganador;
+                    document.getElementById('resultado_archivo').innerHTML = data.archivo;
+                    document.getElementById('resultado_tipo').innerHTML = data.tipo_de_datos;
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('results').style.display = 'block';
+                    button.innerHTML = 'Volver a Ejecutar Lectura';
+                    button.disabled = false;
+                })
+                .catch(error => {
+                    console.error("Error al procesar la respuesta:", error);
+                    document.getElementById('loading').style.display = 'none';
+                    button.disabled = false;
+                });
+        });
+    </script>
+</body>
+</html>
