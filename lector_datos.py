@@ -4,10 +4,13 @@ import string
 import emoji
 import time
 import os
+import mmap
+from concurrent.futures import ThreadPoolExecutor
+import io
 
 app = Flask(__name__)
 
-# Definimos los emojis que queremos utilizar
+# Aqui definimos los emojis que queremos utilizar
 listado_emojis = ''.join([
     emoji.emojize(':smile:'),
     emoji.emojize(':thumbs_up:'),
@@ -20,10 +23,10 @@ listado_emojis = ''.join([
     emoji.emojize(':zap:')
 ])
 
-# Definimos los tipos de caracteres que utilizaremos
+# Definimos los tipos de caracteres que utilizaremos en nuestro algoritmo
 tipos_de_caracteres = string.ascii_letters + string.digits + string.punctuation + listado_emojis
 
-def genera_guardar_datos(cantidad=1000000, longitud=255, archivo_salida="datos_generados.txt", chunk_tamanio=1000000):
+def genera_guardar_datos(cantidad=1000000, longitud=255, archivo_salida="datos_generados.txt", chunk_tamanio=5000):
     if not os.path.exists(archivo_salida):
         print("Generando datos...")
         with open(archivo_salida, "w", encoding="utf-8") as archivo:
@@ -43,7 +46,7 @@ def leer_linea_por_linea(archivo):
     start_time = time.time()
     with open(archivo, 'r', encoding="utf-8") as f:
         for line in f:
-            pass  # Procesamiento de la línea
+            pass  
     end_time = time.time()
     return end_time - start_time
 
@@ -54,25 +57,65 @@ def leer_completa_memoria(archivo):
     end_time = time.time()
     return end_time - start_time
 
-def leer_con_buffers(archivo, buffer_size=4096):
+def leer_con_buffers(archivo, buffer_size=1048576): 
     start_time = time.time()
-    with open(archivo, 'r', encoding="utf-8") as f:
+    with io.open(archivo, 'r', buffering=buffer_size, encoding="utf-8") as f:
         while chunk := f.read(buffer_size):
-            pass  # Procesamiento del chunk
+            pass  
     end_time = time.time()
     return end_time - start_time
 
-def medir_tiempos(archivo, n=5):
+def leer_con_mmap(archivo):
+    start_time = time.time()
+    with open(archivo, 'r', encoding="utf-8") as f:
+        mmapped_file = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        while mmapped_file.readline():
+            pass  
+        mmapped_file.close()
+    end_time = time.time()
+    return end_time - start_time
+
+def leer_con_multithreading(archivo, num_threads=1):
+    start_time = time.time()
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        with open(archivo, 'r', encoding="utf-8") as f:
+            file_size = os.path.getsize(archivo)
+            chunk_size = file_size // num_threads
+            futures = [
+                executor.submit(procesar_chunk, archivo, i * chunk_size, chunk_size, i, file_size)
+                for i in range(num_threads)
+            ]
+            for future in futures:
+                future.result()
+    end_time = time.time()
+    return end_time - start_time
+
+def procesar_chunk(archivo, start, size, thread_index, file_size):
+    with open(archivo, 'r', encoding="utf-8") as f:
+        f.seek(start)
+        data = f.read(size)
+        if thread_index == 0:
+            data = data.splitlines(True)[1:]  
+        elif thread_index == file_size // size - 1:
+            data = data.splitlines()[:-1]  
+        for line in data:
+            pass  
+
+def medir_tiempos(archivo, n=2):  
     tiempos = {
         "Línea por Línea": [],
         "Completa en Memoria": [],
-        "Con Buffers": []
+        "Con Buffers": [],
+        "Con mmap": [],
+        "Con Multithreading": []
     }
     
     for _ in range(n):
         tiempos["Línea por Línea"].append(leer_linea_por_linea(archivo))
         tiempos["Completa en Memoria"].append(leer_completa_memoria(archivo))
         tiempos["Con Buffers"].append(leer_con_buffers(archivo))
+        tiempos["Con mmap"].append(leer_con_mmap(archivo))
+        tiempos["Con Multithreading"].append(leer_con_multithreading(archivo))
     
     tiempos_promedio = {metodo: sum(tiempos[metodo])/n for metodo in tiempos}
     
