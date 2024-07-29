@@ -23,7 +23,7 @@ listado_emojis = ''.join([
 # Definimos los tipos de caracteres que utilizaremos
 tipos_de_caracteres = string.ascii_letters + string.digits + string.punctuation + listado_emojis
 
-def genera_guardar_datos(cantidad=1000000, longitud=255, archivo_salida="datos_generados.txt", chunk_tamanio=2000000):
+def genera_guardar_datos(cantidad=1000000, longitud=255, archivo_salida="datos_generados.txt", chunk_tamanio=1000000):
     if not os.path.exists(archivo_salida):
         print("Generando datos...")
         with open(archivo_salida, "w", encoding="utf-8") as archivo:
@@ -62,9 +62,24 @@ def leer_con_buffers(archivo, buffer_size=4096):
     end_time = time.time()
     return end_time - start_time
 
+def medir_tiempos(archivo, n=5):
+    tiempos = {
+        "Línea por Línea": [],
+        "Completa en Memoria": [],
+        "Con Buffers": []
+    }
+    
+    for _ in range(n):
+        tiempos["Línea por Línea"].append(leer_linea_por_linea(archivo))
+        tiempos["Completa en Memoria"].append(leer_completa_memoria(archivo))
+        tiempos["Con Buffers"].append(leer_con_buffers(archivo))
+    
+    tiempos_promedio = {metodo: sum(tiempos[metodo])/n for metodo in tiempos}
+    
+    return tiempos_promedio
+
 # Función para determinar el método más rápido
 def determinar_ganador(tiempos):
-    metodos = ["Línea por Línea", "Completa en Memoria", "Con Buffers"]
     metodo_ganador = min(tiempos, key=tiempos.get)
     return metodo_ganador
 
@@ -76,11 +91,7 @@ def index():
 def run_test():
     archivo = 'datos_generados.txt'
     genera_guardar_datos()
-    tiempos = {
-        "Línea por Línea": leer_linea_por_linea(archivo),
-        "Completa en Memoria": leer_completa_memoria(archivo),
-        "Con Buffers": leer_con_buffers(archivo)
-    }
+    tiempos = medir_tiempos(archivo)
     ganador = determinar_ganador(tiempos)
     return jsonify({
         "tiempos": tiempos,
